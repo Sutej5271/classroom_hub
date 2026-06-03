@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClassRoom Hub</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f8f8f6;
+    --surface: #ffffff;
+    --surface2: #f1f0ec;
+    --border: rgba(0,0,0,0.08);
+    --border2: rgba(0,0,0,0.14);
+    --text: #1a1a18;
+    --text2: #6b6b67;
+    --text3: #a0a09b;
+    --blue: #185FA5; --blue-bg: #E6F1FB; --blue-border: #B5D4F4;
+    --teal: #0F6E56; --teal-bg: #E1F5EE; --teal-border: #9FE1CB;
+    --amber: #854F0B; --amber-bg: #FAEEDA; --amber-border: #FAC775;
+    --red: #A32D2D; --red-bg: #FCEBEB; --red-border: #F7C1C1;
+    --purple: #534AB7; --purple-bg: #EEEDFE; --purple-border: #CECBF6;
+    --coral: #993C1D; --coral-bg: #FAECE7; --coral-border: #F5C4B3;
+    --green: #1D9E75;
+    --radius: 10px; --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+
+  /* ── Auth Screen ── */
+  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+  .auth-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: 16px; padding: 2rem; width: 100%; max-width: 400px; box-shadow: var(--shadow); }
+  .auth-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
+  .auth-logo-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+  .auth-logo-text { font-size: 18px; font-weight: 600; }
+  .auth-tabs { display: flex; border: 0.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 1.5rem; }
+  .auth-tab { flex: 1; padding: 8px; font-size: 13px; cursor: pointer; background: none; border: none; color: var(--text2); transition: all .15s; }
+  .auth-tab.active { background: var(--text); color: #fff; font-weight: 500; }
+  .form-group { margin-bottom: 12px; }
+  .form-label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .form-input { width: 100%; padding: 9px 12px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); color: var(--text); outline: none; transition: border-color .15s; }
+  .form-input:focus { border-color: var(--blue); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: var(--surface); color: var(--text); transition: all .15s; }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--text); color: #fff; border-color: var(--text); }
+  .btn-primary:hover { background: #333; }
+  .btn-full { width: 100%; }
+  .btn-danger { color: var(--red); border-color: var(--red-border); }
+  .btn-danger:hover { background: var(--red-bg); }
+  .auth-msg { font-size: 12px; margin-top: 10px; padding: 8px 12px; border-radius: var(--radius-sm); display: none; }
+  .auth-msg.error { background: var(--red-bg); color: var(--red); display: block; }
+  .auth-msg.success { background: var(--teal-bg); color: var(--teal); display: block; }
+
+  /* ── App Layout ── */
+  #app-screen { display: none; }
+  .topbar { height: 52px; background: var(--surface); border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; position: sticky; top: 0; z-index: 50; }
+  .logo { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .cr-pill { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--teal-border); background: var(--teal-bg); color: var(--teal); }
+  .cr-pill.off { background: var(--surface2); color: var(--text3); border-color: var(--border); }
+  .user-chip { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text2); cursor: pointer; padding: 5px 10px; border-radius: var(--radius-sm); border: 0.5px solid var(--border); background: var(--surface); }
+  .user-chip:hover { background: var(--surface2); }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--blue-bg); color: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; }
+
+  .layout { display: flex; }
+  .sidebar { width: 196px; min-height: calc(100vh - 52px); background: var(--surface); border-right: 0.5px solid var(--border); padding: 1rem 0; position: sticky; top: 52px; align-self: flex-start; }
+  .nav-section { font-size: 10px; font-weight: 600; color: var(--text3); padding: 0.75rem 1rem 0.3rem; letter-spacing: .07em; text-transform: uppercase; }
+  .nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 1rem; font-size: 13px; color: var(--text2); cursor: pointer; border-left: 2px solid transparent; transition: all .12s; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { color: var(--blue); background: var(--blue-bg); border-left-color: var(--blue); font-weight: 500; }
+  .nav-icon { font-size: 16px; }
+
+  .main { flex: 1; padding: 1.5rem; min-width: 0; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.25rem; }
+  .page-title { font-size: 19px; font-weight: 600; }
+  .page-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  /* ── Cards & Metrics ── */
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: .875rem; display: flex; align-items: center; justify-content: space-between; }
+  .metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .metric { background: var(--surface2); border-radius: var(--radius-sm); padding: .875rem 1rem; }
+  .metric-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+  .metric-value { font-size: 28px; font-weight: 600; line-height: 1; }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+
+  /* ── Tags & Badges ── */
+  .tag { display: inline-flex; align-items: center; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
+  .tag-blue { background: var(--blue-bg); color: var(--blue); }
+  .tag-teal { background: var(--teal-bg); color: var(--teal); }
+  .tag-amber { background: var(--amber-bg); color: var(--amber); }
+  .tag-red { background: var(--red-bg); color: var(--red); }
+  .tag-purple { background: var(--purple-bg); color: var(--purple); }
+  .tag-coral { background: var(--coral-bg); color: var(--coral); }
+
+  /* ── Assignment Rows ── */
+  .assign-row { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 11px 1rem; margin-bottom: 7px; display: flex; align-items: flex-start; gap: 11px; }
+  .assign-bar { width: 4px; border-radius: 2px; align-self: stretch; flex-shrink: 0; min-height: 40px; }
+  .assign-title { font-size: 13px; font-weight: 500; }
+  .assign-desc { font-size: 12px; color: var(--text2); margin-top: 3px; line-height: 1.5; }
+  .assign-footer { display: flex; align-items: center; gap: 7px; margin-top: 7px; flex-wrap: wrap; }
+  .assign-right { margin-left: auto; text-align: right; flex-shrink: 0; padding-left: 8px; }
+  .due-date { font-size: 12px; font-weight: 600; }
+  .due-label { font-size: 10px; color: var(--text3); }
+  .urgent-color { color: var(--red); }
+  .warning-color { color: var(--amber); }
+  .safe-color { color: var(--teal); }
+
+  /* ── Test Cards ── */
+  .test-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 10px; }
+  .test-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+  .test-name { font-size: 15px; font-weight: 500; margin-top: 4px; }
+  .date-pill { font-size: 11px; background: var(--surface2); color: var(--text2); padding: 3px 10px; border-radius: 20px; border: 0.5px solid var(--border); white-space: nowrap; }
+  .test-syllabus { font-size: 12px; color: var(--text2); line-height: 1.7; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid var(--border); white-space: pre-line; }
+
+  /* ── Notice Cards ── */
+  .notice-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 8px; display: flex; gap: 12px; }
+  .notice-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .notice-title { font-size: 13px; font-weight: 500; }
+  .notice-body { font-size: 12px; color: var(--text2); margin-top: 3px; line-height: 1.6; }
+  .notice-meta { font-size: 11px; color: var(--text3); margin-top: 5px; }
+
+  /* ── Filter chips ── */
+  .filter-row { display: flex; gap: 7px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .chip { font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 0.5px solid var(--border); cursor: pointer; background: var(--surface); color: var(--text2); transition: all .12s; }
+  .chip:hover { background: var(--surface2); }
+  .chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  /* ── Modal ── */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
+  .overlay.show { display: flex; }
+  .modal { background: var(--surface); border-radius: 14px; border: 0.5px solid var(--border2); padding: 1.5rem; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+  .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 1.125rem; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; }
+  .form-row { display: flex; gap: 10px; }
+  .form-row .form-group { flex: 1; }
+  select.form-input { cursor: pointer; }
+  textarea.form-input { resize: vertical; min-height: 80px; }
+
+  /* ── Loading / Empty ── */
+  .loading { text-align: center; padding: 2rem; color: var(--text3); font-size: 13px; }
+  .spin { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border2); border-top-color: var(--blue); border-radius: 50%; animation: spin .6s linear infinite; margin-bottom: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 2.5rem; color: var(--text3); font-size: 13px; }
+  .empty-icon { font-size: 32px; margin-bottom: 8px; }
+
+  /* ── Toast ── */
+  #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--text); color: #fff; font-size: 13px; padding: 10px 16px; border-radius: var(--radius-sm); z-index: 999; opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ── Timetable ── */
+  .tt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .tt-table th { padding: 8px 10px; text-align: center; font-weight: 500; color: var(--text2); border-bottom: 0.5px solid var(--border); }
+  .tt-table th:first-child { text-align: left; width: 70px; }
+  .tt-table td { padding: 7px 6px; text-align: center; border-bottom: 0.5px solid var(--border); }
+  .tt-table td:first-child { text-align: left; color: var(--text3); font-size: 11px; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .metrics { grid-template-columns: repeat(2,1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ AUTH SCREEN ══════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-dot"></div>
+      <div class="auth-logo-text">ClassRoom Hub</div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Sign In</button>
+      <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-form">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="login-email" type="email" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="login-password" type="password" placeholder="••••••••">
+      </div>
+      <div id="login-msg" class="auth-msg"></div>
+      <button class="btn btn-primary btn-full" style="margin-top:4px;" onclick="doLogin()">Sign In</button>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signup-form" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input class="form-input" id="signup-name" type="text" placeholder="e.g. Arjun Sharma">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Roll Number</label>
+          <input class="form-input" id="signup-roll" type="text" placeholder="e.g. 21CS042">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="signup-email" type="email" placeholder="your@email.com">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="signup-password" type="password" placeholder="min. 6 characters">
+      </div>
+      <div class="form-group">
+        <label class="form-label">CR Secret Code <span style="color:var(--text3);font-size:11px;">(leave blank if student)</span></label>
+        <input class="form-input" id="signup-cr-code" type="text" placeholder="Ask your CR for the code">
+      </div>
+      <div id="signup-msg" class="auth-msg"></div>
+      <button class="btn btn-primary btn-full" style="margin-top:4px;" onclick="doSignup()">Create Account</button>
+    </div>
+
+    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:1rem;">
+      ⚙️ Set your Supabase URL &amp; Key in the &lt;script&gt; at bottom of this file
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════ APP SCREEN ══════════════ -->
+<div id="app-screen">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="logo"><div class="logo-dot"></div>ClassRoom Hub</div>
+    <div class="topbar-right">
+      <span id="cr-pill" class="cr-pill off" onclick="toggleCR()">CR Mode: OFF</span>
+      <div class="user-chip" onclick="doLogout()">
+        <div class="avatar" id="user-avatar">?</div>
+        <span id="user-name-chip">User</span>
+        <span style="font-size:10px;color:var(--text3);">Sign out</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active" onclick="showPage('dashboard',this)">
+        <span class="nav-icon">⊞</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('assignments',this)">
+        <span class="nav-icon">📋</span> Assignments
+      </div>
+      <div class="nav-item" onclick="showPage('tests',this)">
+        <span class="nav-icon">✍️</span> Class Tests
+      </div>
+      <div class="nav-item" onclick="showPage('notices',this)">
+        <span class="nav-icon">📢</span> Notices
+      </div>
+      <div class="nav-section">Info</div>
+      <div class="nav-item" onclick="showPage('timetable',this)">
+        <span class="nav-icon">🗓</span> Timetable
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="main">
+
+      <!-- ── DASHBOARD ── -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <div class="page-title" id="dash-greeting">Good morning! 👋</div>
+            <div class="page-sub" id="dash-date"></div>
+          </div>
+        </div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Pending assignments</div>
+            <div class="metric-value" id="m-assign" style="color:var(--blue);">—</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Upcoming tests</div>
+            <div class="metric-value" id="m-tests" style="color:var(--amber);">—</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Notices</div>
+            <div class="metric-value" id="m-notices" style="color:var(--teal);">—</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Due this week</div>
+            <div class="metric-value" id="m-urgent" style="color:var(--red);">—</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Upcoming deadlines</div>
+            <div id="dash-assignments"><div class="loading"><div class="spin"></div><br>Loading...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Next tests</div>
+            <div id="dash-tests"><div class="loading"><div class="spin"></div><br>Loading...</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Latest notices</div>
+          <div id="dash-notices"><div class="loading"><div class="spin"></div><br>Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- ── ASSIGNMENTS ── -->
+      <div class="page" id="page-assignments">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Assignments</div>
+            <div class="page-sub">All pending assignments and deadlines</div>
+          </div>
+          <button id="btn-add-assign" class="btn btn-primary" onclick="openModal('modal-assign')" style="display:none;">+ Add Assignment</button>
+        </div>
+        <div class="filter-row" id="assign-filters">
+          <div class="chip active" onclick="filterAssign('All',this)">All</div>
+          <div class="chip" onclick="filterAssign('Math',this)">Math</div>
+          <div class="chip" onclick="filterAssign('Physics',this)">Physics</div>
+          <div class="chip" onclick="filterAssign('English',this)">English</div>
+          <div class="chip" onclick="filterAssign('Chemistry',this)">Chemistry</div>
+          <div class="chip" onclick="filterAssign('CS',this)">CS</div>
+        </div>
+        <div id="assign-list"><div class="loading"><div class="spin"></div><br>Loading assignments...</div></div>
+      </div>
+
+      <!-- ── TESTS ── -->
+      <div class="page" id="page-tests">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Class Tests</div>
+            <div class="page-sub">Upcoming tests with syllabus and exam patterns</div>
+          </div>
+          <button id="btn-add-test" class="btn btn-primary" onclick="openModal('modal-test')" style="display:none;">+ Add Test</button>
+        </div>
+        <div id="tests-list"><div class="loading"><div class="spin"></div><br>Loading tests...</div></div>
+      </div>
+
+      <!-- ── NOTICES ── -->
+      <div class="page" id="page-notices">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Notices &amp; Announcements</div>
+            <div class="page-sub">Official updates from CRs and teachers</div>
+          </div>
+          <button id="btn-add-notice" class="btn btn-primary" onclick="openModal('modal-notice')" style="display:none;">+ Post Notice</button>
+        </div>
+        <div id="notices-list"><div class="loading"><div class="spin"></div><br>Loading notices...</div></div>
+      </div>
+
+      <!-- ── TIMETABLE ── -->
+      <div class="page" id="page-timetable">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Timetable</div>
+            <div class="page-sub">Weekly class schedule</div>
+          </div>
+        </div>
+        <div class="card">
+          <table class="tt-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th style="color:var(--blue);">Mon</th>
+                <th style="color:var(--blue);">Tue</th>
+                <th style="color:var(--blue);">Wed</th>
+                <th style="color:var(--blue);">Thu</th>
+                <th style="color:var(--blue);">Fri</th>
+                <th style="color:var(--amber);">Sat</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>9:00</td><td><span class="tag tag-blue">Math</span></td><td><span class="tag tag-teal">Physics</span></td><td><span class="tag tag-purple">English</span></td><td><span class="tag tag-blue">Math</span></td><td><span class="tag tag-coral">CS</span></td><td><span class="tag tag-amber">Chemistry</span></td></tr>
+              <tr><td>10:00</td><td><span class="tag tag-teal">Physics</span></td><td><span class="tag tag-amber">Chemistry</span></td><td><span class="tag tag-teal">Physics</span></td><td><span class="tag tag-coral">CS</span></td><td><span class="tag tag-blue">Math</span></td><td><span class="tag tag-teal">Physics</span></td></tr>
+              <tr><td>11:00</td><td colspan="6" style="text-align:center;color:var(--text3);">— Break —</td></tr>
+              <tr><td>11:30</td><td><span class="tag tag-amber">Chemistry</span></td><td><span class="tag tag-coral">CS</span></td><td><span class="tag tag-blue">Math</span></td><td><span class="tag tag-purple">English</span></td><td><span class="tag tag-amber">Chemistry</span></td><td><span class="tag tag-coral">CS</span></td></tr>
+              <tr><td>1:00</td><td><span class="tag tag-purple">English</span></td><td><span class="tag tag-blue">Math</span></td><td><span class="tag tag-amber">Chemistry</span></td><td><span class="tag tag-teal">Physics</span></td><td><span class="tag tag-purple">English</span></td><td style="color:var(--text3);font-size:11px;">CS</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /layout -->
+</div><!-- /app-screen -->
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Assignment Modal -->
+<div class="overlay" id="modal-assign">
+  <div class="modal">
+    <div class="modal-title" id="modal-assign-title">Add Assignment</div>
+    <input type="hidden" id="assign-id">
+    <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="assign-title" placeholder="e.g. Chapter 6 Exercises"></div>
+    <div class="form-group"><label class="form-label">Description</label><textarea class="form-input" id="assign-desc" placeholder="Details, instructions, submission method..."></textarea></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select class="form-input" id="assign-subject">
+          <option>Math</option><option>Physics</option><option>Chemistry</option><option>English</option><option>CS</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Due Date</label><input class="form-input" id="assign-due" type="date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-input" id="assign-type"><option>Individual</option><option>Group of 2</option><option>Group of 3</option><option>Group of 4</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Urgency</label>
+        <select class="form-input" id="assign-urgency"><option value="normal">Normal</option><option value="warning">Warning (3–5 days)</option><option value="urgent">Urgent (≤2 days)</option></select>
+      </div>
+    </div>
+    <div id="assign-form-msg" class="auth-msg"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="btn-delete-assign" onclick="deleteAssignment()" style="display:none;margin-right:auto;">Delete</button>
+      <button class="btn" onclick="closeModal('modal-assign')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAssignment()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Test Modal -->
+<div class="overlay" id="modal-test">
+  <div class="modal">
+    <div class="modal-title" id="modal-test-title">Add Test</div>
+    <input type="hidden" id="test-id">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select class="form-input" id="test-subject"><option>Math</option><option>Physics</option><option>Chemistry</option><option>English</option><option>CS</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Test Date</label><input class="form-input" id="test-date" type="date"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Test Name</label><input class="form-input" id="test-name" placeholder="e.g. Unit Test — Organic Chemistry"></div>
+    <div class="form-group"><label class="form-label">Syllabus</label><textarea class="form-input" id="test-syllabus" rows="4" placeholder="Chapters and topics covered..."></textarea></div>
+    <div class="form-group"><label class="form-label">Exam Pattern</label><input class="form-input" id="test-pattern" placeholder="e.g. 30 marks — 10 MCQ + 2 Short + 1 Long"></div>
+    <div id="test-form-msg" class="auth-msg"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="btn-delete-test" onclick="deleteTest()" style="display:none;margin-right:auto;">Delete</button>
+      <button class="btn" onclick="closeModal('modal-test')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTest()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notice Modal -->
+<div class="overlay" id="modal-notice">
+  <div class="modal">
+    <div class="modal-title">Post Notice</div>
+    <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="notice-title" placeholder="Notice title..."></div>
+    <div class="form-group"><label class="form-label">Message</label><textarea class="form-input" id="notice-body" rows="4" placeholder="Full announcement..."></textarea></div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <select class="form-input" id="notice-cat"><option>Important</option><option>Info</option><option>Event</option><option>Reminder</option></select>
+    </div>
+    <div id="notice-form-msg" class="auth-msg"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-notice')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNotice()">Post</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ══════════════ SCRIPT ══════════════ -->
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  ⚙️  CONFIGURE THESE TWO VALUES
+//  1. Go to your Supabase project → Settings → API
+//  2. Copy "Project URL" and "anon public" key
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const SUPABASE_URL  = 'https://eljeqvzanwkmzmidghsd.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsamVxdnphbndrbXptaWRnaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0Mzc1MTEsImV4cCI6MjA5NjAxMzUxMX0.zwpX4qQxoM3kRdJHttrhxe26s_kvgRdc4GcvW_xFt1o';
+const CR_SECRET     = 'myclass2026';   // Change this to your own CR secret code
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let isCR = false;
+let assignFilter = 'All';
+let allAssignments = [];
+let editingAssignId = null;
+let editingTestId = null;
+
+// ── Init ──────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  setDashDate();
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await onLogin(session.user);
+
+  sb.auth.onAuthStateChange(async (_e, session) => {
+    if (session) await onLogin(session.user);
+    else showAuth();
+  });
+});
+
+async function onLogin(user) {
+  currentUser = user;
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+  currentProfile = profile;
+  isCR = profile?.is_cr || false;
+  document.getElementById('user-name-chip').textContent = profile?.full_name?.split(' ')[0] || 'User';
+  document.getElementById('user-avatar').textContent = (profile?.full_name || 'U').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  showApp();
+  loadAll();
+}
+
+function showAuth() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+}
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+}
+
+// ── Auth ──────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (tab==='login'?i===0:i===1)));
+  document.getElementById('login-form').style.display = tab==='login'?'block':'none';
+  document.getElementById('signup-form').style.display = tab==='signup'?'block':'none';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const msg   = document.getElementById('login-msg');
+  msg.className = 'auth-msg';
+  if (!email || !pass) { msg.className='auth-msg error'; msg.textContent='Please fill in all fields.'; return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { msg.className='auth-msg error'; msg.textContent=error.message; }
+}
+
+async function doSignup() {
+  const name  = document.getElementById('signup-name').value.trim();
+  const roll  = document.getElementById('signup-roll').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass  = document.getElementById('signup-password').value;
+  const code  = document.getElementById('signup-cr-code').value.trim();
+  const msg   = document.getElementById('signup-msg');
+  msg.className = 'auth-msg';
+  if (!name||!email||!pass) { msg.className='auth-msg error'; msg.textContent='Please fill in all required fields.'; return; }
+  const wantsCR = code !== '';
+  if (wantsCR && code !== CR_SECRET) { msg.className='auth-msg error'; msg.textContent='Incorrect CR secret code.'; return; }
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+  if (error) { msg.className='auth-msg error'; msg.textContent=error.message; return; }
+  if (data.user) {
+    await sb.from('profiles').update({ roll_number: roll, is_cr: wantsCR }).eq('id', data.user.id);
+  }
+  msg.className='auth-msg success';
+  msg.textContent = 'Account created! Check your email to confirm, then sign in.';
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  showAuth();
+}
+
+// ── Navigation ────────────────────────
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if (el) el.classList.add('active');
+  if (name === 'assignments') renderAssignments();
+  if (name === 'tests') loadTests();
+  if (name === 'notices') loadNotices();
+}
+
+// ── CR Mode ───────────────────────────
+function toggleCR() {
+  if (!isCR) { toast('Only Class Representatives can enable CR Mode'); return; }
+  const pill = document.getElementById('cr-pill');
+  const on = pill.textContent.includes('OFF');
+  pill.textContent = on ? 'CR Mode: ON' : 'CR Mode: OFF';
+  pill.className = on ? 'cr-pill' : 'cr-pill off';
+  ['btn-add-assign','btn-add-test','btn-add-notice'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = on ? '' : 'none';
+  });
+  renderAssignments();
+  loadTests();
+  loadNotices();
+}
+function crModeOn() { return document.getElementById('cr-pill').textContent.includes('ON'); }
+
+// ── Load All ──────────────────────────
+function loadAll() {
+  loadDashboard();
+  renderAssignments();
+}
+
+// ── Dashboard ─────────────────────────
+function setDashDate() {
+  const now = new Date();
+  const h = now.getHours();
+  const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('dash-greeting').textContent = greet + ', Class! 👋';
+  document.getElementById('dash-date').textContent = now.toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+}
+
+async function loadDashboard() {
+  const today = new Date().toISOString().split('T')[0];
+  const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate()+7);
+  const weekStr = weekEnd.toISOString().split('T')[0];
+
+  const [{ data: assigns }, { data: tests }, { data: notices }] = await Promise.all([
+    sb.from('assignments').select('*').gte('due_date', today).order('due_date'),
+    sb.from('tests').select('*').gte('test_date', today).order('test_date'),
+    sb.from('notices').select('*,profiles(full_name)').order('created_at', { ascending: false }).limit(3)
+  ]);
+
+  allAssignments = assigns || [];
+  document.getElementById('m-assign').textContent = allAssignments.length;
+  document.getElementById('m-tests').textContent = (tests||[]).length;
+  document.getElementById('m-notices').textContent = (notices||[]).length;
+  document.getElementById('m-urgent').textContent = allAssignments.filter(a => a.due_date <= weekStr).length;
+
+  // Dashboard assignments
+  const da = document.getElementById('dash-assignments');
+  if (!allAssignments.length) { da.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No pending assignments</div>'; }
+  else {
+    da.innerHTML = allAssignments.slice(0,4).map(a => {
+      const { label, cls } = urgencyInfo(a.due_date);
+      return `<div style="padding:9px 0;border-bottom:0.5px solid var(--border);display:flex;align-items:flex-start;gap:9px;">
+        <div style="width:7px;height:7px;border-radius:50%;background:${urgencyColor(a.urgency)};margin-top:5px;flex-shrink:0;"></div>
+        <div>
+          <div style="font-size:13px;font-weight:500;">${esc(a.title)}</div>
+          <div style="font-size:11px;color:var(--text3);">${esc(a.subject)} · Due ${fmtDate(a.due_date)}</div>
+          <div style="font-size:11px;margin-top:2px;" class="${cls}">${label}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Dashboard tests
+  const dt = document.getElementById('dash-tests');
+  if (!tests||!tests.length) { dt.innerHTML = '<div class="empty"><div class="empty-icon">✍️</div>No upcoming tests</div>'; }
+  else {
+    dt.innerHTML = tests.slice(0,3).map(t => {
+      const days = daysUntil(t.test_date);
+      const cls = days <= 2 ? 'urgent-color' : days <= 5 ? 'warning-color' : 'safe-color';
+      return `<div style="padding:9px 0;border-bottom:0.5px solid var(--border);">
+        <div style="font-size:13px;font-weight:500;">${esc(t.test_name)}</div>
+        <div style="font-size:11px;color:var(--text3);">${esc(t.subject)} · ${fmtDate(t.test_date)}</div>
+        <div style="font-size:11px;margin-top:2px;" class="${cls}">${days === 0 ? 'Today!' : days === 1 ? 'Tomorrow' : days+' days away'}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Dashboard notices
+  const dn = document.getElementById('dash-notices');
+  if (!notices||!notices.length) { dn.innerHTML = '<div class="empty"><div class="empty-icon">📢</div>No notices yet</div>'; }
+  else {
+    dn.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;">` +
+      notices.map(n => `<div>
+        <div style="font-size:13px;font-weight:500;">${esc(n.title)}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px;">${esc(n.body).substring(0,90)}${n.body.length>90?'…':''}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">${fmtDateFull(n.created_at)}</div>
+      </div>`).join('') + '</div>';
+  }
+}
+
+// ── Assignments ───────────────────────
+async function renderAssignments() {
+  const today = new Date().toISOString().split('T')[0];
+  if (!allAssignments.length) {
+    const { data } = await sb.from('assignments').select('*').gte('due_date', today).order('due_date');
+    allAssignments = data || [];
+  }
+  const list = document.getElementById('assign-list');
+  let data = allAssignments;
+  if (assignFilter !== 'All') data = data.filter(a => a.subject === assignFilter);
+
+  if (!data.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No assignments found</div>';
+    return;
+  }
+  list.innerHTML = data.map(a => {
+    const barColor = urgencyColor(a.urgency);
+    const { label, cls } = urgencyInfo(a.due_date);
+    const subjectTag = subjectTagClass(a.subject);
+    const editBtn = crModeOn() ? `<button class="btn" style="padding:4px 10px;font-size:11px;" onclick="openEditAssign(${JSON.stringify(a).replace(/"/g,'&quot;')})">Edit</button>` : '';
+    return `<div class="assign-row">
+      <div class="assign-bar" style="background:${barColor};"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+          <span class="assign-title">${esc(a.title)}</span>
+          <span class="tag ${subjectTag}">${esc(a.subject)}</span>
+          ${a.urgency==='urgent'?'<span class="tag tag-red">Urgent</span>':''}
+        </div>
+        ${a.description ? `<div class="assign-desc">${esc(a.description)}</div>` : ''}
+        <div class="assign-footer">
+          <span style="font-size:11px;color:var(--text3);">Type: ${esc(a.assignment_type)}</span>
+          ${editBtn}
+        </div>
+      </div>
+      <div class="assign-right">
+        <div class="due-date ${cls}">${fmtDate(a.due_date)}</div>
+        <div class="due-label">Due date</div>
+        <div style="font-size:11px;margin-top:3px;" class="${cls}">${label}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterAssign(subject, el) {
+  document.querySelectorAll('#assign-filters .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  assignFilter = subject;
+  renderAssignments();
+}
+
+function openEditAssign(a) {
+  editingAssignId = a.id;
+  document.getElementById('modal-assign-title').textContent = 'Edit Assignment';
+  document.getElementById('assign-id').value = a.id;
+  document.getElementById('assign-title').value = a.title;
+  document.getElementById('assign-desc').value = a.description||'';
+  document.getElementById('assign-subject').value = a.subject;
+  document.getElementById('assign-due').value = a.due_date;
+  document.getElementById('assign-type').value = a.assignment_type||'Individual';
+  document.getElementById('assign-urgency').value = a.urgency||'normal';
+  document.getElementById('btn-delete-assign').style.display = '';
+  openModal('modal-assign');
+}
+
+async function saveAssignment() {
+  const title   = document.getElementById('assign-title').value.trim();
+  const desc    = document.getElementById('assign-desc').value.trim();
+  const subject = document.getElementById('assign-subject').value;
+  const due     = document.getElementById('assign-due').value;
+  const type    = document.getElementById('assign-type').value;
+  const urgency = document.getElementById('assign-urgency').value;
+  const msgEl   = document.getElementById('assign-form-msg');
+  msgEl.className = 'auth-msg';
+  if (!title||!due) { msgEl.className='auth-msg error'; msgEl.textContent='Title and due date are required.'; return; }
+
+  const payload = { title, description:desc, subject, due_date:due, assignment_type:type, urgency, created_by:currentUser.id, updated_at:new Date().toISOString() };
+  let error;
+  if (editingAssignId) {
+    ({ error } = await sb.from('assignments').update(payload).eq('id', editingAssignId));
+  } else {
+    ({ error } = await sb.from('assignments').insert(payload));
+  }
+  if (error) { msgEl.className='auth-msg error'; msgEl.textContent=error.message; return; }
+
+  toast(editingAssignId ? 'Assignment updated!' : 'Assignment added!');
+  closeModal('modal-assign');
+  allAssignments = [];
+  await loadDashboard();
+  renderAssignments();
+}
+
+async function deleteAssignment() {
+  if (!confirm('Delete this assignment?')) return;
+  await sb.from('assignments').delete().eq('id', editingAssignId);
+  toast('Assignment deleted');
+  closeModal('modal-assign');
+  allAssignments = [];
+  await loadDashboard();
+  renderAssignments();
+}
+
+// ── Tests ─────────────────────────────
+async function loadTests() {
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await sb.from('tests').select('*').gte('test_date', today).order('test_date');
+  const list = document.getElementById('tests-list');
+  if (!data||!data.length) { list.innerHTML = '<div class="empty"><div class="empty-icon">✍️</div>No upcoming tests</div>'; return; }
+  list.innerHTML = data.map(t => {
+    const days = daysUntil(t.test_date);
+    const cls = days <= 2 ? 'urgent-color' : days <= 5 ? 'warning-color' : 'safe-color';
+    const countdownTxt = days === 0 ? 'Today!' : days === 1 ? 'Tomorrow!' : days+' days away';
+    const editBtn = crModeOn() ? `<button class="btn" style="padding:4px 10px;font-size:11px;margin-top:8px;" onclick="openEditTest(${JSON.stringify(t).replace(/"/g,'&quot;')})">Edit Test</button>` : '';
+    const borderColor = subjectBorderColor(t.subject);
+    return `<div class="test-card" style="border-left:3px solid ${borderColor};">
+      <div class="test-header">
+        <div>
+          <span class="tag ${subjectTagClass(t.subject)}">${esc(t.subject)}</span>
+          <div class="test-name">${esc(t.test_name)}</div>
+        </div>
+        <span class="date-pill">📅 ${fmtDate(t.test_date)}</span>
+      </div>
+      <div style="font-size:12px;" class="${cls}">⏰ <strong>${countdownTxt}</strong></div>
+      ${t.syllabus ? `<div class="test-syllabus"><strong>Syllabus:</strong>\n${esc(t.syllabus)}</div>` : ''}
+      ${t.exam_pattern ? `<div style="font-size:11px;color:var(--text3);margin-top:6px;">📝 ${esc(t.exam_pattern)}</div>` : ''}
+      ${editBtn}
+    </div>`;
+  }).join('');
+}
+
+function openEditTest(t) {
+  editingTestId = t.id;
+  document.getElementById('modal-test-title').textContent = 'Edit Test';
+  document.getElementById('test-id').value = t.id;
+  document.getElementById('test-subject').value = t.subject;
+  document.getElementById('test-date').value = t.test_date;
+  document.getElementById('test-name').value = t.test_name;
+  document.getElementById('test-syllabus').value = t.syllabus||'';
+  document.getElementById('test-pattern').value = t.exam_pattern||'';
+  document.getElementById('btn-delete-test').style.display = '';
+  openModal('modal-test');
+}
+
+async function saveTest() {
+  const subject  = document.getElementById('test-subject').value;
+  const date     = document.getElementById('test-date').value;
+  const name     = document.getElementById('test-name').value.trim();
+  const syllabus = document.getElementById('test-syllabus').value.trim();
+  const pattern  = document.getElementById('test-pattern').value.trim();
+  const msgEl    = document.getElementById('test-form-msg');
+  msgEl.className = 'auth-msg';
+  if (!name||!date) { msgEl.className='auth-msg error'; msgEl.textContent='Name and date are required.'; return; }
+
+  const payload = { subject, test_date:date, test_name:name, syllabus, exam_pattern:pattern, created_by:currentUser.id, updated_at:new Date().toISOString() };
+  let error;
+  if (editingTestId) {
+    ({ error } = await sb.from('tests').update(payload).eq('id', editingTestId));
+  } else {
+    ({ error } = await sb.from('tests').insert(payload));
+  }
+  if (error) { msgEl.className='auth-msg error'; msgEl.textContent=error.message; return; }
+  toast(editingTestId ? 'Test updated!' : 'Test added!');
+  closeModal('modal-test');
+  loadTests();
+  loadDashboard();
+}
+
+async function deleteTest() {
+  if (!confirm('Delete this test?')) return;
+  await sb.from('tests').delete().eq('id', editingTestId);
+  toast('Test deleted');
+  closeModal('modal-test');
+  loadTests();
+  loadDashboard();
+}
+
+// ── Notices ───────────────────────────
+async function loadNotices() {
+  const { data } = await sb.from('notices').select('*,profiles(full_name)').order('created_at', { ascending:false });
+  const list = document.getElementById('notices-list');
+  if (!data||!data.length) { list.innerHTML = '<div class="empty"><div class="empty-icon">📢</div>No notices posted yet</div>'; return; }
+  list.innerHTML = data.map(n => {
+    const { icon, bg, color } = noticeCatStyle(n.category);
+    const deleteBtn = crModeOn() ? `<button class="btn btn-danger" style="padding:3px 10px;font-size:11px;margin-top:6px;" onclick="deleteNotice('${n.id}')">Delete</button>` : '';
+    return `<div class="notice-card">
+      <div class="notice-icon" style="background:${bg};color:${color};">${icon}</div>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="notice-title">${esc(n.title)}</div>
+          <span class="tag" style="background:${bg};color:${color};">${esc(n.category)}</span>
+        </div>
+        <div class="notice-body">${esc(n.body)}</div>
+        <div class="notice-meta">Posted by ${esc(n.profiles?.full_name||'CR')} · ${fmtDateFull(n.created_at)}</div>
+        ${deleteBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function saveNotice() {
+  const title = document.getElementById('notice-title').value.trim();
+  const body  = document.getElementById('notice-body').value.trim();
+  const cat   = document.getElementById('notice-cat').value;
+  const msgEl = document.getElementById('notice-form-msg');
+  msgEl.className = 'auth-msg';
+  if (!title||!body) { msgEl.className='auth-msg error'; msgEl.textContent='Title and message are required.'; return; }
+  const { error } = await sb.from('notices').insert({ title, body, category:cat, created_by:currentUser.id });
+  if (error) { msgEl.className='auth-msg error'; msgEl.textContent=error.message; return; }
+  toast('Notice posted!');
+  closeModal('modal-notice');
+  loadNotices();
+  loadDashboard();
+}
+
+async function deleteNotice(id) {
+  if (!confirm('Delete this notice?')) return;
+  await sb.from('notices').delete().eq('id', id);
+  toast('Notice deleted');
+  loadNotices();
+  loadDashboard();
+}
+
+// ── Modal helpers ─────────────────────
+function openModal(id) {
+  // reset edit state
+  if (id==='modal-assign') { editingAssignId=null; document.getElementById('modal-assign-title').textContent='Add Assignment'; document.getElementById('btn-delete-assign').style.display='none'; document.getElementById('assign-form-msg').className='auth-msg'; ['assign-title','assign-desc','assign-due'].forEach(f=>document.getElementById(f).value=''); document.getElementById('assign-subject').value='Math'; document.getElementById('assign-urgency').value='normal'; }
+  if (id==='modal-test') { editingTestId=null; document.getElementById('modal-test-title').textContent='Add Test'; document.getElementById('btn-delete-test').style.display='none'; document.getElementById('test-form-msg').className='auth-msg'; ['test-name','test-date','test-syllabus','test-pattern'].forEach(f=>document.getElementById(f).value=''); }
+  if (id==='modal-notice') { document.getElementById('notice-form-msg').className='auth-msg'; ['notice-title','notice-body'].forEach(f=>document.getElementById(f).value=''); }
+  document.getElementById(id).classList.add('show');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) o.classList.remove('show'); }));
+
+// ── Toast ─────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── Helpers ───────────────────────────
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(d) { if(!d) return '—'; return new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }
+function fmtDateFull(d) { if(!d) return '—'; return new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }
+function daysUntil(d) { const today=new Date(); today.setHours(0,0,0,0); const due=new Date(d+'T00:00:00'); return Math.max(0,Math.round((due-today)/(1000*60*60*24))); }
+
+function urgencyColor(u) { if(u==='urgent') return '#E24B4A'; if(u==='warning') return '#EF9F27'; return '#1D9E75'; }
+function urgencyInfo(due) {
+  const days = daysUntil(due);
+  if (days === 0) return { label: 'Due Today!', cls: 'urgent-color' };
+  if (days === 1) return { label: 'Due Tomorrow', cls: 'urgent-color' };
+  if (days <= 3) return { label: days+' days left', cls: 'warning-color' };
+  return { label: days+' days left', cls: 'safe-color' };
+}
+function subjectTagClass(s) {
+  const m = {Math:'tag-blue',Physics:'tag-teal',Chemistry:'tag-amber',English:'tag-purple',CS:'tag-coral'};
+  return m[s]||'tag-blue';
+}
+function subjectBorderColor(s) {
+  const m = {Math:'#378ADD',Physics:'#1D9E75',Chemistry:'#7F77DD',English:'#D4537E',CS:'#D85A30'};
+  return m[s]||'#378ADD';
+}
+function noticeCatStyle(cat) {
+  if (cat==='Important') return { icon:'⚠️', bg:'var(--amber-bg)', color:'var(--amber)' };
+  if (cat==='Event')     return { icon:'🎉', bg:'var(--blue-bg)', color:'var(--blue)' };
+  if (cat==='Reminder')  return { icon:'🔔', bg:'var(--red-bg)', color:'var(--red)' };
+  return { icon:'ℹ️', bg:'var(--teal-bg)', color:'var(--teal)' };
+}
+</script>
+</body>
+</html>
